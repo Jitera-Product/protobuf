@@ -412,7 +412,7 @@ bool WireFormat::ParseAndMergeMessageSetField(uint32_t field_number,
 }
 
 static bool StrictUtf8Check(const FieldDescriptor* field) {
-  return field->file()->syntax() == FileDescriptor::SYNTAX_PROTO3;
+  return field->requires_utf8_validation();
 }
 
 bool WireFormat::ParseAndMergeField(
@@ -484,8 +484,7 @@ bool WireFormat::ParseAndMergeField(
           if (!WireFormatLite::ReadPrimitive<int, WireFormatLite::TYPE_ENUM>(
                   input, &value))
             return false;
-          if (message->GetDescriptor()->file()->syntax() ==
-              FileDescriptor::SYNTAX_PROTO3) {
+          if (!field->enum_type()->is_closed()) {
             message_reflection->AddEnumValue(message, field, value);
           } else {
             const EnumValueDescriptor* enum_value =
@@ -869,8 +868,7 @@ const char* WireFormat::_InternalParseAndMergeField(
           auto rep_enum =
               reflection->MutableRepeatedFieldInternal<int>(msg, field);
           bool open_enum = false;
-          if (field->file()->syntax() == FileDescriptor::SYNTAX_PROTO3 ||
-              open_enum) {
+          if (!field->enum_type()->is_closed() || open_enum) {
             ptr = internal::PackedEnumParser(rep_enum, ptr, ctx);
           } else {
             return ctx->ReadPackedVarint(
@@ -1030,7 +1028,25 @@ const char* WireFormat::_InternalParseAndMergeField(
         sub_message =
             reflection->MutableMessage(msg, field, ctx->data().factory);
       }
-      return ctx->ParseMessage(sub_message, ptr);
+      ptr = ctx->ParseMessage(sub_message, ptr);
+
+      // For map entries, if the value is an unknown enum we have to push it
+      // into the unknown field set and remove it from the list.
+      if (ptr != nullptr && field->is_map()) {
+        auto* value_field = field->message_type()->map_value();
+        auto* enum_type = value_field->enum_type();
+        if (enum_type != nullptr &&
+            !internal::cpp::HasPreservingUnknownEnumSemantics(value_field) &&
+            enum_type->FindValueByNumber(
+                sub_message->GetReflection()->GetEnumValue(
+                    *sub_message, value_field)) == nullptr) {
+          reflection->MutableUnknownFields(msg)->AddLengthDelimited(
+              field->number(), sub_message->SerializeAsString());
+          reflection->RemoveLast(msg, field);
+        }
+      }
+
+      return ptr;
     }
   }
 

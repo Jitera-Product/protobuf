@@ -124,6 +124,8 @@ class PROTOBUF_EXPORT ThreadSafeArena {
   // Add object pointer and cleanup function pointer to the list.
   void AddCleanup(void* elem, void (*cleanup)(void*));
 
+  void* AllocateFromStringBlock();
+
  private:
   friend class ArenaBenchmark;
   friend class TcParser;
@@ -260,7 +262,7 @@ class PROTOBUF_EXPORT ThreadSafeArena {
   // wrap them in static functions.
   static ThreadCache& thread_cache();
 #else
-  ABSL_CONST_INIT static PROTOBUF_THREAD_LOCAL ThreadCache thread_cache_;
+  PROTOBUF_CONSTINIT static PROTOBUF_THREAD_LOCAL ThreadCache thread_cache_;
   static ThreadCache& thread_cache() { return thread_cache_; }
 #endif
 
