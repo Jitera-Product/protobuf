@@ -1,8 +1,6 @@
 #ifndef UTF8_RANGE_H
 #define UTF8_RANGE_H
 
-#include <cstdint>
-#include <cstring>
 
 namespace utf8 {
 
