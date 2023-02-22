@@ -10500,7 +10500,7 @@ enum {
 #ifndef UPB_WIRE_DECODE_INTERNAL_H_
 #define UPB_WIRE_DECODE_INTERNAL_H_
 
-#include "utf8_range.h"
+// #include "utf8_range.h"
 
 // Must be last.
 
